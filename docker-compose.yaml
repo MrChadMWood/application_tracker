@@ -1,0 +1,73 @@
+services:
+
+  storage:
+    image: postgres:14-alpine
+    ports:
+      - 5432:5432
+    volumes:
+      - ./data/pgdata/:/var/lib/postgresql/data/
+      - ./data/sql/schema.sql:/docker-entrypoint-initdb.d/01-init.sql
+    environment:
+      POSTGRES_PASSWORD: admin
+      POSTGRES_USER: admin
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d apptracker -h 127.0.0.1"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+    profiles:
+      - ''
+      - storage
+      - fullstack
+
+  webapp:
+    build:
+      context: ./ui/
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./ui/:/app/
+    working_dir: /app
+    entrypoint: ["streamlit", "run", "main.py"]
+    depends_on:
+      - 'api'
+      - 'storage'
+    profiles:
+      - ''
+      - webapp
+      - fullstack
+
+  api:
+    build:
+      context: ./api/
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api/:/app/
+    working_dir: /app
+    entrypoint: ["python", "-m", "main"]
+    depends_on:
+      - 'storage'
+    profiles:
+      - ''
+      - api
+      - fullstack
+
+  metabase:
+    image: metabase/metabase:latest
+    container_name: metabase
+    volumes:
+      - /dev/urandom:/dev/random:ro
+    ports:
+      - 3001:3000
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_USER: admin
+      MB_DB_PASS: admin
+      MB_DB_HOST: storage
+      MB_DB_PORT: 5432
+      MB_DB_DBNAME: metabase
+    depends_on:
+      - storage
+    profiles:
+      - metabase
