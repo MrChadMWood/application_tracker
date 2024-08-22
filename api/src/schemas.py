@@ -1,5 +1,5 @@
 # app/schemas.py
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import date
 
 
@@ -13,11 +13,8 @@ class ResumeCreate(ResumeBase):
 class Resume(ResumeBase):
     id: int
 
-    class Config:
-        from_attributes = True
-
-# JobPosting Schemas
-class JobPostingBase(BaseModel):
+# Posting Schemas
+class PostingBase(BaseModel):
     platform: str
     company: str
     title: str
@@ -27,29 +24,23 @@ class JobPostingBase(BaseModel):
     qualifications: str
     remote: bool | None = None
 
-class JobPostingCreate(JobPostingBase):
+class PostingCreate(PostingBase):
     pass
 
-class JobPosting(JobPostingBase):
+class Posting(PostingBase):
     id: int
 
-    class Config:
-        from_attributes = True
-
-# JobApplication Schemas
-class JobApplicationBase(BaseModel):
+# Application Schemas
+class ApplicationBase(BaseModel):
     posting_id: int
     resume_id: int
     date_submitted: date
 
-class JobApplicationCreate(JobApplicationBase):
+class ApplicationCreate(ApplicationBase):
     pass
 
-class JobApplication(JobApplicationBase):
+class Application(ApplicationBase):
     id: int
-
-    class Config:
-        from_attributes = True
 
 # ResponseType Schemas
 class ResponseTypeBase(BaseModel):
@@ -60,9 +51,6 @@ class ResponseTypeCreate(ResponseTypeBase):
 
 class ResponseType(ResponseTypeBase):
     id: int
-
-    class Config:
-        from_attributes = True
 
 # Response Schemas
 class ResponseBase(BaseModel):
@@ -76,6 +64,3 @@ class ResponseCreate(ResponseBase):
 
 class Response(ResponseBase):
     id: int
-
-    class Config:
-        from_attributes = True
