@@ -1,17 +1,14 @@
 # app/crud.py
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
-import src.schemas as schema
-
-# app/crud.py
-from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import NoResultFound
-from src.models import Resume, JobPosting, JobApplication, ResponseType, Response
+import src.schemas as schema
+import src.models as model
+
 
 class CRUDBase:
-    def __init__(self, model):
-        self.model = model
+    def __init__(self, _model):
+        self.model = _model
 
     def create(self, db: Session | AsyncSession, obj_in):
         db_obj = self.model(**obj_in.dict())
@@ -46,8 +43,8 @@ class CRUDBase:
         return db_obj
 
 
-resume = CRUDBase(Resume)
-posting = CRUDBase(JobPosting)
-application = CRUDBase(JobApplication)
-response_type = CRUDBase(ResponseType)
-response = CRUDBase(Response)
+resume = CRUDBase(model.Resume)
+posting = CRUDBase(model.JobPosting)
+application = CRUDBase(model.JobApplication)
+response_type = CRUDBase(model.ResponseType)
+response = CRUDBase(model.Response)
