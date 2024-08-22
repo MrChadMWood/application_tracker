@@ -10,9 +10,9 @@ st.set_page_config(layout=layout_mode)
 
 
 class StreamlitApp:
-    def __init__(self):
-        self.api_client = APIClient(base_url=api_url)
-        self.table_display = TableDisplay(api_client=self.api_client)
+    def __init__(self, api_client):
+        self.api_client = api_client
+        self.table_display = TableDisplay(api_client=api_client)
 
     def run(self):
         # Define endpoints based on selected entity
@@ -32,7 +32,7 @@ class StreamlitApp:
                 "Choose a table",
                 endpoints
             )
-
+            
         endpoint = endpoints[selected_entity]
 
         # Display selected table and forms
@@ -40,12 +40,13 @@ class StreamlitApp:
         left_side, right_side = st.columns(2)
 
         with left_side:
-            create_form(self.table_display.api_client, endpoint).show_form()
+            create_form(self.api_client, endpoint).show_form()
         
         with right_side:
             with st.expander("Display Data"):
                 self.table_display.show_table(endpoint)
 
 if __name__ == "__main__":
-    app = StreamlitApp()
+    api_client = APIClient(base_url=api_url)
+    app = StreamlitApp(api_client)
     app.run()

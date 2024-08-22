@@ -1,8 +1,10 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 from enum import Enum
 
 
 class FieldType(str, Enum):
+    model_config = ConfigDict(extra="forbid")
+
     NUMBER = 'number'
     DATE = 'date'
     TEXT = 'text'
@@ -14,6 +16,8 @@ class FieldType(str, Enum):
         return self.name
 
 class Field(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str
     type: FieldType | str
     is_required: bool

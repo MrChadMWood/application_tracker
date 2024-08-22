@@ -2,22 +2,18 @@ import streamlit as st
 from src.types import Field, FieldType
 from src.settings import logger
 from src.api import APIClient
-from datetime import date, datetime
+from datetime import date
 from itertools import chain
-
 
 class BaseForm:
     def __init__(self, api_client: APIClient, endpoint: str, fields: list[Field]):
         self.api_client: APIClient = api_client
         self.endpoint: str = endpoint
         self.dropdown_options: dict = {}
-        
-        # Endpoints list preserves order of fields
-        self._endpoints: list[str] = []
-        self._fields: dict[str, list[Field]] = {}
 
-        # Fields are managed via this private attribute
-        self._add_fields(endpoint, fields)
+        # Stores child forms and their respective endpoints
+        self._endpoints: list[str] = [endpoint]
+        self._fields: dict[str, list[Field]] = {endpoint: fields}
 
     @property
     def fields(self) -> dict[str, list[Field]]:
@@ -25,7 +21,7 @@ class BaseForm:
         index_map = {e: i for i, e in enumerate(self._endpoints)}
         return dict(sorted(self._fields.items(), key=lambda item: index_map[item[0]]))
 
-    def _add_fields(self, endpoint: str, fields: list[Field], after_entry: str = None):
+    def add_fields(self, endpoint: str, fields: list[Field], after_entry: str = None):
         field_names = [f.name for f in fields]
         if len(set(field_names)) != len(field_names):
             raise ValueError('Fields may not have duplicate names')
@@ -35,10 +31,10 @@ class BaseForm:
         else:
             # Adds endpoint after given element
             index = self._endpoints.index(after_entry) + 1
-            self._endpoints[index:index] = endpoint
+            self._endpoints[index:index] = [endpoint]
             self._fields[endpoint] = fields
 
-    def _remove_fields(self, endpoint: str):
+    def remove_fields(self, endpoint: str):
         self._endpoints.remove(endpoint)
         return self._fields.pop(endpoint)
 
@@ -49,26 +45,38 @@ class BaseForm:
         )
 
         with st.form("crud_form"):
-            item_id = None
-            if selected_operation in ["Update", "Delete"]:
-                item_id = st.number_input("Record (ID) to modify:", min_value=1)
+            form_data = {}
+            for endpoint in self._endpoints:
+                st.subheader(f"Form for {endpoint.capitalize()}")
 
-            input_data = {}
-            if selected_operation in ["Create", "Update"]:
-                for field in chain.from_iterable(self.fields.values()):
-                    if field.type == FieldType.FOREIGN_KEY:
-                        left_side, right_side = st.columns([5,1])
-                        with right_side:
-                            creating_new = st.checkbox('New', key=field.name)
-                        with left_side:
+                item_id = None
+                if selected_operation in ["Update", "Delete"]:
+                    item_id = st.number_input(f"Record (ID) to modify for {endpoint}:", min_value=1)
+
+                if selected_operation in ["Create", "Update"]:
+                    input_data = {}
+                    for field in self.fields[endpoint]:
+                        if field.type == FieldType.FOREIGN_KEY:
+                            left_side, right_side = st.columns([5, 1])
+                            with right_side:
+                                creating_new = st.checkbox('New', key=f"{endpoint}_{field.name}_new")
+                            with left_side:
+                                if creating_new:
+                                    input_data[field.name] = self.get_field_input_component(field)
+                                else:
+                                    input_data[field.name] = self.get_field_input_component(field)
+                        else:
                             input_data[field.name] = self.get_field_input_component(field)
-                    else:
-                        input_data[field.name] = self.get_field_input_component(field)
+
+                    form_data[endpoint] = {
+                        "item_id": item_id,
+                        "data": input_data
+                    }
 
             submit_button = st.form_submit_button("Submit")
 
         if submit_button:
-            self._handle_submission(selected_operation, item_id, input_data)
+            self._handle_submission(selected_operation, form_data)
 
     def _clean_any_dates(self, _data):
         data = _data.copy()
@@ -77,14 +85,20 @@ class BaseForm:
                 data[key] = value.isoformat()
         return data
 
-    def _handle_submission(self, operation, item_id, data):
-        serializable_data = self._clean_any_dates(data)
-        if operation == "Create":
-            response = self.api_client.perform_crud(self.endpoint, "POST", data=serializable_data)
-        elif operation == "Update":
-            response = self.api_client.perform_crud(self.endpoint, "PUT", data=serializable_data, id=item_id)
-        elif operation == "Delete":
-            response = self.api_client.perform_crud(self.endpoint, "DELETE", id=item_id)
+    def _handle_submission(self, operation, data):
+        for endpoint in self._endpoints:
+            form_data = data.get(endpoint)
+            if not form_data:
+                continue
+
+            item_id = form_data["item_id"]
+            serializable_data = self._clean_any_dates(form_data["data"])
+            if operation == "Create":
+                self.api_client.perform_crud(endpoint, "POST", data=serializable_data)
+            elif operation == "Update":
+                self.api_client.perform_crud(endpoint, "PUT", data=serializable_data, id=item_id)
+            elif operation == "Delete":
+                self.api_client.perform_crud(endpoint, "DELETE", id=item_id)
 
         self.api_client.clear_cache()
         st.rerun()
@@ -104,7 +118,7 @@ class BaseForm:
             return self._create_foreign_key_selectbox(field)
         else:
             raise ValueError(f"Unsupported field type: {field.type}")
-    
+
     def _create_title(self, field):
         title = f"**{field.name.replace('_', ' ').title()}**"
         return title + ' *' if field.is_required else title
