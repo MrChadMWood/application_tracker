@@ -20,6 +20,7 @@ class Field(BaseModel):
 
     name: str
     type: FieldType | str
+    form_name: str
     is_required: bool
     default: object = None
     parent_endpoint: str | None = None

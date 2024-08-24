@@ -66,20 +66,7 @@ class BaseForm:
         if submit_button:
             self._handle_submission(selected_operation, None, input_data)
 
-    '''
-    This entire approach should change. Rather than showing a form within a form, 
-    try calculating the number of rows ahead of time, 
-    creating that many "input_components", 
-    then filling their `left_side` and `right_side` pieces with the fields 
-    and their attachment part (the name / New checkbox).
 
-    Set it up so that the form just rerenders once this is all ready.
-
-    Test if it is possible to use a real form, given that it'll be a different (newly generated) form each time a checkbox is clicked.
-    
-    It might simplify things to develop a class that hold both parts, the field and the checkbox. Then they dont need to be calculated on the
-    fly, can be stored in an instance of the class.
-    '''
     def _render_child_form(self, field, input_data):
         """Render a child form if the 'New' checkbox is selected."""
         with st.container(border=True):
