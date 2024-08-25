@@ -1,0 +1,4 @@
+# this is needed for local development with docker
+[server]
+runOnSave = true
+fileWatcherType = "poll"
