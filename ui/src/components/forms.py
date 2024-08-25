@@ -1,31 +1,43 @@
 import streamlit as st
-from src.types import Field, FieldType
+from src.schemas import Field, FieldType
+# from src.components import FormRow (todo: refactor the components)
 from src.settings import logger
 from src.api import APIClient
 from datetime import date
 
 
-class FormField:
-    def __init__(self, field: Field, api_client: APIClient, endpoint: str):
+class FormRow:
+    '''
+    A component representing a row in the form. It contains two columns:
+    - The left column is for a "New" checkbox next to foreign-key fields or displays the field's parent table's name.
+    - The right column is for the input field itself.
+
+    When the "New" checkbox is selected for a foreign-key field, the foreign-key field in the right column is replaced
+    with a placeholder text ("Creating new {parent table name}"). This signals that new fields related to the foreign
+    key should be dynamically inserted into the form.
+
+    In a future update, the FormRow would ideally have a fixed height.
+    '''
+    def __init__(self, field: Field, api_client: APIClient):
         self.field = field
         self.api_client = api_client
-        self.endpoint = endpoint
         self.is_new = False
         self.dropdown_options = {}
 
     def render(self):
         """Render the form field with two columns: left for checkbox/name, right for input."""
-        left_col, right_col = st.columns([1, 2])
+        left_col, right_col = st.columns([1, 3])
         
         with left_col:
             if self.field.type == FieldType.FOREIGN_KEY:
-                self.is_new = st.checkbox(f'New {self.field.parent_endpoint}', key=f'{self.endpoint}-{self.field.name}-checkbox')
+                self.is_new = st.checkbox(f'New', key=f'{self.field.name}-checkbox')
             else:
                 st.write(f'*{self.field.form_name}*')  # Print the table name in italics
 
         with right_col:
             if self.is_new:
-                return None  # Indicates that a child form should be rendered
+                st.write(f'###### *Creating new {self.field.parent_endpoint}*')
+                return None  # Indicates that a new entity is being created
             else:
                 return self._render_field_input()
 
@@ -34,7 +46,7 @@ class FormField:
         if self.field.type == FieldType.FOREIGN_KEY:
             return self._create_foreign_key_selectbox()
         else:
-            return BaseForm.get_field_input_component(self.field, self.endpoint)
+            return DynamicForm.get_field_input_component(self.field)
 
     def _create_foreign_key_selectbox(self):
         """Create a select box for a foreign key field."""
@@ -43,7 +55,7 @@ class FormField:
 
         options = self.dropdown_options.get(self.field.name, {})
         labels = list(options.values())
-        selected_label = st.selectbox(self._create_title(), options=labels, label_visibility='visible', key=f'{self.endpoint}-{self.field.name}')
+        selected_label = st.selectbox(self._create_title(), options=labels, label_visibility='visible', key=f'{self.field.name}')
         selected_id = self._get_selected_foreign_key_id(options, selected_label)
         return selected_id
 
@@ -65,59 +77,71 @@ class FormField:
         return title + ' *' if self.field.is_required else title
 
 
-class BaseForm:
-    def __init__(self, api_client: APIClient, endpoint: str, fields: list[Field]):
+class DynamicForm:
+    '''
+    A dynamic form that combines fields from multiple endpoints into a single form. The form dynamically adds related
+    fields when a user selects the "New" checkbox for a foreign-key field. All fields are rendered in a single form with
+    a unified submit button at the bottom.
+
+    This form does not preserve the order of fields. When new fields are added due to a foreign-key relationship, they are
+    inserted at the end of the form. In a future update, it is prefered that new fields join immediately after the triggering 
+    foreign-key field, pushing subsequent fields down in the form.
+
+    There is some instability with FormRow positions while adding new fields. FieldRows whose position isn't changing, are
+    bouncing around. This would ideally be fixed in a future update.
+
+    The form collects all necessary data from the user and submits it in a single operation, ensuring that all records
+    are processed in the correct order according to their dependencies.
+    '''
+    def __init__(self, api_client: APIClient, fields: list[Field]):
         self.api_client = api_client
-        self.endpoint = endpoint
-        self.fields = [FormField(field, api_client, endpoint) for field in fields]
-        self.child_forms = {}
+        self.endpoints_data = {}
+        self.fields = []
+        self._initialize_fields(fields)
 
-    def show_form(self, operation: str = None):
-        selected_operation = operation or st.radio("Select Operation", ["Create", "Update", "Delete"], key=self.endpoint)
+    def _initialize_fields(self, fields):
+        """Initialize the fields and structure for the nested data."""
+        for field in fields:
+            if field.form_name not in self.endpoints_data:
+                self.endpoints_data[field.form_endpoint] = {}
+            self.fields.append(FormRow(field, self.api_client))
 
-        with st.container():
-            item_id = None
-            if selected_operation in ["Update", "Delete"]:
-                item_id = st.number_input("Record (ID) to modify:", min_value=1)
+    def show_form(self):
+        """Render the entire form with all fields and a single submit button at the bottom."""
+        self._render_form_fields()
 
-            input_data = {}
-            if selected_operation in ["Create", "Update"]:
-                self._render_form_fields(input_data)
-
-            submit_button = st.button("Submit", key=f'{self.endpoint}-submit')
+        submit_button = st.button("Submit", key='form-submit')
 
         if submit_button:
-            self._handle_submission(selected_operation, item_id, input_data)
+            self._handle_submission()
 
-    def _render_form_fields(self, input_data):
-        """Render all form fields, including handling of child forms."""
-        for form_field in self.fields:
-            field_data = form_field.render()
-            if form_field.is_new and field_data is None:
-                child_data = self._render_child_form(form_field.field.parent_endpoint)
-                input_data[form_field.field.name] = child_data
+    def _render_form_fields(self):
+        """Render all form fields, dynamically including related fields as necessary."""
+        for form_row in self.fields:
+            field_data = form_row.render()
+            if form_row.is_new and field_data is None:
+                self._add_child_fields(form_row.field.parent_endpoint)
             else:
-                input_data[form_field.field.name] = field_data
+                self.endpoints_data[form_row.field.form_endpoint][form_row.field.name] = field_data
 
-    def _render_child_form(self, endpoint: str):
-        """Render a child form and return its input data."""
-        if endpoint not in self.child_forms:
-            child_form_class = forms.get(endpoint)
-            if not child_form_class:
-                raise ValueError(f"No form class found for endpoint: {endpoint}")
-            self.child_forms[endpoint] = child_form_class(self.api_client)
+    def _add_child_fields(self, parent_endpoint):
+        """Add fields from a child endpoint dynamically to the form."""
+        child_form_class = forms.get(parent_endpoint)
+        if not child_form_class:
+            raise ValueError(f"No form class found for endpoint: {parent_endpoint}")
 
-        return self.child_forms[endpoint].show_form(operation="Create")
+        child_form = child_form_class(self.api_client)
+        self._initialize_fields(child_form.fields_list)
 
-    def _handle_submission(self, operation, item_id, data):
-        """Handle form submission based on the selected operation."""
-        serializable_data = self._clean_any_dates(data)
-        if operation == "Create":
-            self.api_client.perform_crud(self.endpoint, "POST", data=serializable_data)
-        elif operation == "Update":
-            self.api_client.perform_crud(self.endpoint, "PUT", data=serializable_data, id=item_id)
-        elif operation == "Delete":
-            self.api_client.perform_crud(self.endpoint, "DELETE", id=item_id)
+    def _handle_submission(self):
+        """Handle form submission, processing all collected data."""
+        serializable_data = self._clean_any_dates(self.endpoints_data)
+        
+        # Submit all collected data in the correct order
+        for endpoint, data in serializable_data.items():
+            if data:
+                logger.info(f'submitting: {data}')
+                self.api_client.perform_crud(endpoint, "POST", data=data)
 
         self.api_client.clear_cache()
         st.rerun()
@@ -125,25 +149,28 @@ class BaseForm:
     @staticmethod
     def _clean_any_dates(data):
         """Convert date objects to isoformat strings for serialization."""
-        cleaned_data = data.copy()
-        for key, value in cleaned_data.items():
-            if isinstance(value, date):
-                cleaned_data[key] = value.isoformat()
+        cleaned_data = {}
+        for endpoint, fields in data.items():
+            cleaned_fields = fields.copy()
+            for key, value in cleaned_fields.items():
+                if isinstance(value, date):
+                    cleaned_fields[key] = value.isoformat()
+            cleaned_data[endpoint] = cleaned_fields
         return cleaned_data
 
     @staticmethod
-    def get_field_input_component(field: Field, endpoint: str):
+    def get_field_input_component(field: Field):
         """Retrieve the appropriate input component for a field."""
         if field.type == FieldType.TEXT:
-            return st.text_input(BaseForm._create_title(field), value=field.default, key=f'{endpoint}-{field.name}')
+            return st.text_input(DynamicForm._create_title(field), value=field.default, key=f'{field.form_name}-{field.name}')
         elif field.type == FieldType.MULTILINE_TEXT:
-            return st.text_area(BaseForm._create_title(field), value=field.default, key=f'{endpoint}-{field.name}')
+            return st.text_area(DynamicForm._create_title(field), value=field.default, key=f'{field.form_name}-{field.name}')
         elif field.type == FieldType.NUMBER:
-            return st.number_input(BaseForm._create_title(field), value=field.default, key=f'{endpoint}-{field.name}')
+            return st.number_input(DynamicForm._create_title(field), value=field.default, key=f'{field.form_name}-{field.name}')
         elif field.type == FieldType.DATE:
-            return st.date_input(BaseForm._create_title(field), value=field.default, key=f'{endpoint}-{field.name}')
+            return st.date_input(DynamicForm._create_title(field), value=field.default, key=f'{field.form_name}-{field.name}')
         elif field.type == FieldType.BOOLEAN:
-            return st.checkbox(BaseForm._create_title(field), value=field.default, key=f'{endpoint}-{field.name}')
+            return st.checkbox(DynamicForm._create_title(field), value=field.default, key=f'{field.form_name}-{field.name}')
         else:
             raise ValueError(f"Unsupported field type: {field.type}")
 
@@ -154,66 +181,71 @@ class BaseForm:
 
 
 # Define specific forms for each endpoint
-class ResumeForm(BaseForm):
+class ResumeForm(DynamicForm):
     name = 'resumes'
+    endpoint = 'resumes'
     fields_list = [
-        Field(name='data', type=FieldType.TEXT, is_required=True, form_name=name)
+        Field(name='data', type=FieldType.TEXT, is_required=True, form_name=name, form_endpoint=endpoint)
     ]
 
     def __init__(self, api_client):
-        super().__init__(api_client, self.name, self.fields_list)
+        super().__init__(api_client, self.fields_list)
 
 
-class PostingForm(BaseForm):
-    name = 'postings'
+class PostingForm(DynamicForm):
+    name = 'posting'
+    endpoint = 'postings'
     fields_list = [
-        Field(name='platform', type=FieldType.TEXT, is_required=True, form_name=name),
-        Field(name='company', type=FieldType.TEXT, is_required=True, form_name=name),
-        Field(name='title', type=FieldType.TEXT, is_required=True, form_name=name),
-        Field(name='salary', type=FieldType.NUMBER, is_required=False, form_name=name),
-        Field(name='description', type=FieldType.MULTILINE_TEXT, is_required=False, form_name=name),
-        Field(name='responsibilities', type=FieldType.MULTILINE_TEXT, is_required=False, form_name=name),
-        Field(name='qualifications', type=FieldType.MULTILINE_TEXT, is_required=False, form_name=name),
-        Field(name='remote', type=FieldType.BOOLEAN, is_required=False, form_name=name),
+        Field(name='platform', type=FieldType.TEXT, is_required=True, form_name=name, form_endpoint=endpoint),
+        Field(name='company', type=FieldType.TEXT, is_required=True, form_name=name, form_endpoint=endpoint),
+        Field(name='title', type=FieldType.TEXT, is_required=True, form_name=name, form_endpoint=endpoint),
+        Field(name='salary', type=FieldType.NUMBER, is_required=False, form_name=name, form_endpoint=endpoint),
+        Field(name='description', type=FieldType.MULTILINE_TEXT, is_required=False, form_name=name, form_endpoint=endpoint),
+        Field(name='responsibilities', type=FieldType.MULTILINE_TEXT, is_required=False, form_name=name, form_endpoint=endpoint),
+        Field(name='qualifications', type=FieldType.MULTILINE_TEXT, is_required=False, form_name=name, form_endpoint=endpoint),
+        Field(name='remote', type=FieldType.BOOLEAN, is_required=False, form_name=name, form_endpoint=endpoint),
     ]
 
     def __init__(self, api_client):
-        super().__init__(api_client, self.name, self.fields_list)
+        super().__init__(api_client, self.fields_list)
 
 
-class ApplicationForm(BaseForm):
-    name = 'applications'
+class ApplicationForm(DynamicForm):
+    name = 'application'
+    endpoint = 'applications'
     fields_list = [
-        Field(name='posting_id', type=FieldType.FOREIGN_KEY, is_required=True, parent_endpoint='postings', parent_id='id', parent_label='title', parent_allow_new=True, form_name=name),
-        Field(name='resume_id', type=FieldType.FOREIGN_KEY, is_required=True, parent_endpoint='resumes', parent_id='id', parent_label='data', parent_allow_new=True, form_name=name),
-        Field(name='date_submitted', type=FieldType.DATE, is_required=True, form_name=name),
+        Field(name='posting_id', type=FieldType.FOREIGN_KEY, is_required=True, parent_endpoint='postings', parent_id='id', parent_label='title', parent_allow_new=True, form_name=name, form_endpoint=endpoint),
+        Field(name='resume_id', type=FieldType.FOREIGN_KEY, is_required=True, parent_endpoint='resumes', parent_id='id', parent_label='data', parent_allow_new=True, form_name=name, form_endpoint=endpoint),
+        Field(name='date_submitted', type=FieldType.DATE, is_required=True, form_name=name, form_endpoint=endpoint),
     ]
 
     def __init__(self, api_client):
-        super().__init__(api_client, self.name, self.fields_list)
+        super().__init__(api_client, self.fields_list)
 
 
-class ResponseTypeForm(BaseForm):
-    name = 'response_types'
+class ResponseTypeForm(DynamicForm):
+    name = 'response_type'
+    endpoint = 'response_types'
     fields_list = [
-        Field(name='name', type=FieldType.TEXT, is_required=True, form_name=name)
+        Field(name='name', type=FieldType.TEXT, is_required=True, form_name=name, form_endpoint=endpoint)
     ]
 
     def __init__(self, api_client):
-        super().__init__(api_client, self.name, self.fields_list)
+        super().__init__(api_client, self.fields_list)
 
 
-class ResponseForm(BaseForm):
-    name = 'responses'
+class ResponseForm(DynamicForm):
+    name = 'response'
+    endpoint = 'responses'
     fields_list = [
-        Field(name='application_id', type=FieldType.FOREIGN_KEY, is_required=True, parent_endpoint='applications', parent_id='id', parent_label='id', parent_allow_new=True, form_name=name),
-        Field(name='response_type_id', type=FieldType.FOREIGN_KEY, is_required=True, parent_endpoint='response_types', parent_id='id', parent_label='name', parent_allow_new=True, form_name=name),
-        Field(name='date_received', type=FieldType.DATE, is_required=True, form_name=name),
-        Field(name='data', type=FieldType.TEXT, is_required=False, form_name=name),
+        Field(name='application_id', type=FieldType.FOREIGN_KEY, is_required=True, parent_endpoint='applications', parent_id='id', parent_label='id', parent_allow_new=True, form_name=name, form_endpoint=endpoint),
+        Field(name='response_type_id', type=FieldType.FOREIGN_KEY, is_required=True, parent_endpoint='response_types', parent_id='id', parent_label='name', parent_allow_new=True, form_name=name, form_endpoint=endpoint),
+        Field(name='date_received', type=FieldType.DATE, is_required=True, form_name=name, form_endpoint=endpoint),
+        Field(name='data', type=FieldType.TEXT, is_required=False, form_name=name, form_endpoint=endpoint),
     ]
 
     def __init__(self, api_client):
-        super().__init__(api_client, self.name, self.fields_list)
+        super().__init__(api_client, self.fields_list)
 
 
 # Factory function to create form instances

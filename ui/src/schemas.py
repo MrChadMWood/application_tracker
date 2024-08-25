@@ -1,6 +1,12 @@
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 from enum import Enum
 
+'''
+Todo- refactor the fields, which can inherit from a base field class. 
+The Foreign-Key fields have different attributes than any other, and shouldn't
+cloud the namespace of other field types. This will allow for better control over behavior
+based on field type.
+'''
 
 class FieldType(str, Enum):
     model_config = ConfigDict(extra="forbid")
@@ -21,6 +27,7 @@ class Field(BaseModel):
     name: str
     type: FieldType | str
     form_name: str
+    form_endpoint: str
     is_required: bool
     default: object = None
     parent_endpoint: str | None = None
