@@ -42,7 +42,7 @@ class FormRow:
                 return self._render_field_input()
 
     def _render_field_input(self):
-        """Render the appropriate input component based on the field type."""
+        """Render the input component based on the field type."""
         if self.field.type == FieldType.FOREIGN_KEY:
             return self._create_foreign_key_selectbox()
         else:
@@ -94,47 +94,55 @@ class DynamicForm:
     are processed in the correct order according to their dependencies.
     '''
     def __init__(self, api_client: APIClient, fields: list[Field]):
-        self.api_client = api_client
-        self.endpoints_data = {}
-        self.fields = []
-        self._initialize_fields(fields)
+        self.api_client = api_client # Used for data retrieval, employs caching
+        self.endpoints_data = {} # Maps form endpoints to their input data
+        self.rows = [] # Cache of all rows in form. Recalcd when rows change.
+        self._initialize_rows(fields)
 
-    def _initialize_fields(self, fields):
+    def _initialize_rows(self, fields, insert_after=None):
         """Initialize the fields and structure for the nested data."""
+        new_rows = []
         for field in fields:
             if field.form_name not in self.endpoints_data:
                 self.endpoints_data[field.form_endpoint] = {}
-            self.fields.append(FormRow(field, self.api_client))
+            new_rows.append(FormRow(field, self.api_client))
+
+        if insert_after == None:
+            self.rows.extend(new_rows)
+        else:
+            pos = insert_after + 1
+            self.rows[pos:pos] = new_rows  
 
     def show_form(self):
-        """Render the entire form with all fields and a single submit button at the bottom."""
-        self._render_form_fields()
+        """Render form with all fields and submit button."""
+        self._render_form_rows()
 
         submit_button = st.button("Submit", key='form-submit')
 
         if submit_button:
             self._handle_submission()
 
-    def _render_form_fields(self):
-        """Render all form fields, dynamically including related fields as necessary."""
-        for form_row in self.fields:
+    def _render_form_rows(self):
+        """Render all form fields, dynamically including related fields."""
+        for i, form_row in enumerate(self.rows):
             field_data = form_row.render()
             if form_row.is_new and field_data is None:
-                self._add_child_fields(form_row.field.parent_endpoint)
+                # Adds fields to self.rows, after current iteration
+                self._add_child_rows(form_row.field.parent_endpoint, insert_after=i)
             else:
                 self.endpoints_data[form_row.field.form_endpoint][form_row.field.name] = field_data
 
-    def _add_child_fields(self, parent_endpoint):
+    def _add_child_rows(self, parent_endpoint, insert_after):
         """Add fields from a child endpoint dynamically to the form."""
         child_form_class = forms.get(parent_endpoint)
         if not child_form_class:
             raise ValueError(f"No form class found for endpoint: {parent_endpoint}")
 
         child_form = child_form_class(self.api_client)
-        self._initialize_fields(child_form.fields_list)
+        self._initialize_rows(child_form.fields_list, insert_after=insert_after)
 
     def _handle_submission(self):
-        """Handle form submission, processing all collected data."""
+        """Handle form submission."""
         serializable_data = self._clean_any_dates(self.endpoints_data)
         
         # Submit all collected data in the correct order
@@ -160,7 +168,7 @@ class DynamicForm:
 
     @staticmethod
     def get_field_input_component(field: Field):
-        """Retrieve the appropriate input component for a field."""
+        """Retrieve the input component for a field."""
         if field.type == FieldType.TEXT:
             return st.text_input(DynamicForm._create_title(field), value=field.default, key=f'{field.form_name}-{field.name}')
         elif field.type == FieldType.MULTILINE_TEXT:
