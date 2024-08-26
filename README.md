@@ -65,12 +65,13 @@ The UI employs a dynamic form concept, where fields are generated based on the s
 #### Form Structure
 
 - **Form Rows**: Each form is divided into rows where each row corresponds to a database field. For foreign key fields, users have the option to create a new related record by selecting a "New" checkbox, which dynamically inserts the necessary fields into the form.
-- **Dynamic Data Handling**: The form system ensures that all required fields are filled in a single operation, minimizing the chances of incomplete data entry.
+
   
 #### Future Goals
 
 - **Stabilize Form Layout**: Currently, when a new related field is added, it appears at the end of the form. The goal is to make the form more intuitive by placing new fields directly after the triggering field.
 - **Improve Form Row Stability**: Ensure that fields that are not changing position remain stable to avoid a jarring user experience.
+- **Dynamic Data Handling**: The the API could utilize transactions to ensure that all required forms are filled in a single operation, minimizing the chances of incomplete data entry.
 
 ### Page Layout
 
