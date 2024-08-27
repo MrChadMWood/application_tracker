@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
-from src.settings import logger
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TableDisplay:

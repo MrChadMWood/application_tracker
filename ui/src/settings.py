@@ -13,4 +13,4 @@ api_url = os.getenv('API_URL', 'http://api:8000')
 
 # Configure logging
 logging.basicConfig(level=logging_level, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+

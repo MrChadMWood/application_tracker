@@ -30,10 +30,6 @@ class Field(BaseModel):
     form_endpoint: str
     is_required: bool
     default: object = None
-    parent_endpoint: str | None = None
-    parent_id: str | None = None
-    parent_label: str | None = None
-    parent_allow_new: bool = False
 
     @model_validator(mode='before')
     def validate_foreign_key(cls, values):
@@ -42,3 +38,9 @@ class Field(BaseModel):
             values['type'] = FieldType(typ)
 
         return values
+
+class ForeignKeyField(Field):
+    parent_endpoint: str | None = None
+    parent_id: str | None = None
+    parent_label: str | None = None
+    parent_allow_new: bool = False
