@@ -1,3 +1,4 @@
+# ./src/components/table.py
 import streamlit as st
 import pandas as pd
 import logging

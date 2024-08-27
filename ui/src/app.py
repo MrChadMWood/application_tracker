@@ -1,10 +1,9 @@
+# ./src/app.py
 import streamlit as st
 from src.settings import api_url, layout_mode
-from src.utils import create_form
 from src.api import APIClient
 from src.components.table import TableDisplay
-from src.components.form_tree import FormTree
-from forms import endpoints, all_forms
+from src.components.form import FormTree, init_form_tree
 import logging
 
 logger = logging.getLogger(__name__)
@@ -23,7 +22,7 @@ class CRUDApp:
             st.header("Select Entity")
             selected_entity = st.radio(
                 "Choose a table",
-                endpoints
+                self.form_endpoints
             )
             
         endpoint = self.form_endpoints[selected_entity]
@@ -33,7 +32,7 @@ class CRUDApp:
         left_side, right_side = st.columns(2)
 
         with left_side:
-            create_form(self.api_client, endpoint, self.all_forms).show_form()
+            init_form_tree(self.api_client, endpoint, self.all_forms).show_form()
         
         with right_side:
             with st.expander("Display Data"):
