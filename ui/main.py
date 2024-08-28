@@ -9,6 +9,12 @@ from src.app import CRUDApp
 logger = logging.getLogger(__name__)
 st.set_page_config(layout=layout_mode)
 
+# Assigned a value due to streamlit magic otherwise embedding string into webapp.
+todo = '''
+TODO:
+    A recent change updated Form class to include `id_field` as an attribute. Older code assumed that `"id"` was the id_field on a db table belonging to a form.
+    As a result of this change, older code should be updated to reference the `id_field` attribute. Any reference to form labels should similarly utilize the `label_field` attribute.
+'''
 
 def create_forms():
     ResumeForm = Form(
@@ -78,7 +84,7 @@ def create_forms():
         ],
     )
 
-    return {
+    all_forms = {
         "resumes": ResumeForm,
         "postings": PostingForm,
         "applications": ApplicationForm,
@@ -86,14 +92,16 @@ def create_forms():
         "responses": ResponseForm
     }
 
+    # Initializes all fields, using all_forms to inject metadata about foreign-keys
+    for endpoint, form in all_forms.items():
+        all_forms[endpoint] = form.convert_template_fields(all_forms)
+
+    return all_forms
+
 
 if __name__ == "__main__":
     # Initialize forms
     all_forms = create_forms()
-
-    # Initializes all fields, using all_forms to inject metadata about foreign-keys
-    for endpoint, form in all_forms.items():
-        all_forms[endpoint] = form.convert_template_fields(all_forms)
 
     # Maps human readable names to form endpoints
     endpoints = {k.title().replace('_', ' '): k for k in all_forms}
