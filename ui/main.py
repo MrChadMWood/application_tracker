@@ -84,19 +84,14 @@ def create_forms():
         ],
     )
 
-    all_forms = {
-        "resumes": ResumeForm,
-        "postings": PostingForm,
-        "applications": ApplicationForm,
-        "response_types": ResponseTypeForm,
-        "responses": ResponseForm
-    }
+    all_forms = [ResumeForm, PostingForm, ApplicationForm, ResponseTypeForm, ResponseForm]
+    form_endpoint_mapping = {f.endpoint: f for f in all_forms}
 
     # Initializes all fields, using all_forms to inject metadata about foreign-keys
-    for endpoint, form in all_forms.items():
-        all_forms[endpoint] = form.convert_template_fields(all_forms)
+    for endpoint, form in form_endpoint_mapping.items():
+        form_endpoint_mapping[endpoint] = form.convert_template_fields(form_endpoint_mapping)
 
-    return all_forms
+    return form_endpoint_mapping
 
 
 if __name__ == "__main__":
