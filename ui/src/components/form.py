@@ -1,6 +1,6 @@
 # ./src/components/form.py
 import streamlit as st
-from src.schemas import Field, FieldType
+from src.schemas import Field, FieldType, FieldTemplate
 from src.api import APIClient
 from datetime import date
 import logging
@@ -167,10 +167,24 @@ class FormTree:
         return data
 
 class Form(FormTree):
-    def __init__(self, name, endpoint, fields_list):
+    def __init__(self, name, endpoint, fields_list, id_field, label_field, allow_children_make_new):
         self.name = name
         self.endpoint = endpoint
         self.fields_list = fields_list
+        self.id_field = id_field
+        self.label_field = label_field
+        self.allow_children_make_new = allow_children_make_new
+
+    def convert_template_fields(self, all_forms):
+        self.fields_list = [
+            f if not isinstance(f, FieldTemplate) else f.as_field(
+                form_name=self.name, 
+                form_endpoint=self.endpoint, 
+                forms=all_forms
+            )
+            for f in self.fields_list
+        ]
+        return self
 
     def init_tree(self, api_client, all_forms):
         super().__init__(api_client, self.fields_list, forms=all_forms)
