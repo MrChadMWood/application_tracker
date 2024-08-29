@@ -52,9 +52,11 @@ class FormTree:
         # Reset pending foreign key tracking
         self.pending_fk = {endpoint: {} for endpoint in self.forms.keys()}
 
-        self.selected_operation = st.radio("Select Operation", ["Create", "Update", "Delete"], key='operation-select', horizontal=True)
+        self.selected_operation = st.radio('Select operation:', options=["Create", "Update", "Delete"], key='operation-select', horizontal=True)
+
         if self.selected_operation in ["Update", "Delete"]:
             self.record_id = st.number_input("Record (ID) to modify:", min_value=1)
+            st.write('___')
 
         if self.selected_operation != "Delete":
             self.render_rows()
@@ -92,7 +94,9 @@ class FormTree:
                 self.add_child_rows(row.field.parent_endpoint, insert_after=i)
             else:
                 self.input_data[row.field.form_endpoint][row.field.name] = field_data
-                st.write('___')
+            
+            # Creates line under each row.
+            st.write('___')
 
     def add_child_rows(self, parent_endpoint, insert_after):
         """Add fields from a child endpoint dynamically to the form."""

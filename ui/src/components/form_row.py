@@ -1,4 +1,4 @@
-# ./src/components/form.py
+# ./src/components/form_row.py
 import streamlit as st
 from src.schemas import Field, FieldType
 from src.api import APIClient
@@ -51,7 +51,7 @@ class FormRow:
     def render(self, fk_tracker: dict = None, allow_new: bool = True):
         """Render the form row with two columns."""
         fk_tracker = fk_tracker or {}
-        _, left_col, right_col = st.columns([1, 3, 12], vertical_alignment='bottom')
+        _, left_col, right_col = st.columns([.2, 4, 8], vertical_alignment='bottom')
 
         with left_col:
             self._render_left_column(fk_tracker, allow_new=allow_new)
@@ -70,7 +70,7 @@ class FormRow:
 
     def _handle_foreign_key_checkbox(self, fk_tracker):
         """Handle the logic for the 'New' checkbox in foreign key fields."""
-        self.is_new = st.checkbox('New', key=f'{self.field.name}-checkbox')
+        self.is_new = st.checkbox(f'New {self.field.parent_endpoint}', key=f'{self.field.name}-checkbox')
         self._update_foreign_key_tracking(fk_tracker)
         return self.is_new
 

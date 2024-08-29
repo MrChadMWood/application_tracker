@@ -18,6 +18,15 @@ TODO:
     The form could implement better behavior for required fields by refusing submission if they do not have a default.
     Need to test allow_children_make_new=False
     Need to implement better label fields in the DB. Consider generated stored columns.
+
+    Make the forms `id` field in Update and Delete operations autopopulate via click on a row in data table. For update, make all row data load into form.
+
+    The use of "endpoint" might be a bit confusing.
+
+    Would be neat if the data display table could show alternative tables, so that a denormalized view can be shown instead.
+
+    The "New" checkbox would benefit from having an attribute like "parent_form_name", which would be more clear than using "parent_endpoint"
+    the `id_field` and `label_field` could have more explicit names.
 '''
 
 def create_forms():
@@ -96,13 +105,13 @@ if __name__ == "__main__":
     # Initialize forms
     all_forms = create_forms()
 
-    # Initialize api client, app, table
+    # Initialize api client, crud_form, table
     api_client = APIClient(base_url=api_url)
-    app = DynamicCRUDForm(api_client, all_forms)
+    crud_form = DynamicCRUDForm(api_client, all_forms)
     table_display = TableDisplay(api_client=api_client)   
 
     # Prepare forms for use
-    app.initialize_forms()
+    crud_form.initialize_forms()
 
     # Maps human readable names to form endpoints
     form_endpoints = {form.endpoint.title().replace('_', ' '): form.endpoint for form in all_forms}
@@ -122,4 +131,4 @@ if __name__ == "__main__":
         table_display.show_table(endpoint)
 
     with st.expander('Form', expanded=True):
-        app.run(endpoint)
+        crud_form.run(endpoint)
