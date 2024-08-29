@@ -38,7 +38,7 @@ class BaseField(BaseModel):
         return values
 
 class FieldTemplate(BaseField):
-    """Template for initializing fields in forms."""
+    """Template for fields in forms. Used for building form state prior to initialization."""
     parent_endpoint: str | None = None
 
     @model_validator(mode='before')
@@ -47,21 +47,21 @@ class FieldTemplate(BaseField):
             raise ValueError("`parent_endpoint` must be provided when `type` is 'foreign-key'")
         return values
 
+    # Convert FieldTemplate to a specific Field instance.
     def as_field(self, forms=None, **kwargs):
-        """Convert FieldTemplate to a specific Field instance."""
         if self.type == FieldType.FOREIGN_KEY:
             return self._create_foreign_key_field(forms, **kwargs)
         else:
             return self._create_standard_field(**kwargs)
 
+    # Creates a standard Field instance.
     def _create_standard_field(self, **kwargs):
-        """Creates a standard Field instance."""
         field_data = self._prepare_field_data()
         field_data.pop('parent_endpoint', None)
         return Field(**field_data, **kwargs)
 
+    # Creates a ForeignKeyField instance.
     def _create_foreign_key_field(self, forms, **kwargs):
-        """Creates a ForeignKeyField instance."""
         field_data = self._prepare_field_data()
         parent_form = forms.get(self.parent_endpoint)
         
@@ -75,8 +75,8 @@ class FieldTemplate(BaseField):
         })
         return ForeignKeyField(**field_data, **kwargs)
 
+    # Creates a standard Field instance.
     def _prepare_field_data(self):
-        """Prepares data common to all field types."""
         field_data = self.model_dump()
         return field_data
 
