@@ -58,9 +58,13 @@ The Job Application Tracker is a web-based application designed to help users tr
 
 The UI is built with **Streamlit**, providing a simple and interactive interface for managing job application data. The UI focuses on presenting forms for CRUD operations and visualizing the stored data. 
 
+[Applications Form Basic](docs/images/applications-create-flat-2024_08_29T10_39_27.png)
+
 ### Unique Form Concept
 
 The UI employs a dynamic form concept, where fields are generated based on the selected entity (e.g., Resumes, Postings, Applications). The forms are designed to allow users to create new records and, if necessary, dynamically add related fields based on foreign key relationships.
+
+[Applications Form Expanded](docs/images/applications-create-expanded-all-2024_08_29T10_39_27.png)
 
 #### Form Structure
 
