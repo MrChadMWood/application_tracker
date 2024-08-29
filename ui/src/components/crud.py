@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class CRUDApp:
+class DynamicCRUDForm:
     def __init__(self, api_client: APIClient, forms: list[type[FormTree]] = []):
         self.api_client: APIClient = api_client
         self.forms: list[type[FormTree]] = forms

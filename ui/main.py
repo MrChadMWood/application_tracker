@@ -4,8 +4,8 @@ from src.settings import api_url, layout_mode
 from src.schemas import Field, ForeignKeyField, FieldType, FieldTemplate
 from src.components.form import Form, FormTree
 from src.components.table import TableDisplay
+from src.components.crud import DynamicCRUDForm
 from src.api import APIClient
-from src.app import CRUDApp
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +101,7 @@ if __name__ == "__main__":
 
     # Initialize api client, app, table
     api_client = APIClient(base_url=api_url)
-    app = CRUDApp(api_client, all_forms)
+    app = DynamicCRUDForm(api_client, all_forms)
     table_display = TableDisplay(api_client=api_client)   
 
     # Prepare forms for use
