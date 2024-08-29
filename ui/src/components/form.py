@@ -175,18 +175,8 @@ class Form(FormTree):
         self.label_field = label_field
         self.allow_children_make_new = allow_children_make_new
 
-    def convert_template_fields(self, all_forms):
-        self.fields_list = [
-            f if not isinstance(f, FieldTemplate) else f.as_field(
-                form_name=self.name, 
-                form_endpoint=self.endpoint, 
-                forms=all_forms
-            )
-            for f in self.fields_list
-        ]
-        return self
-
     def init_tree(self, api_client, all_forms):
+        # Passes all forms so FormTree can lookup child fields during FK propagation
         super().__init__(api_client, self.fields_list, forms=all_forms)
         return self
 
