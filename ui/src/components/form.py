@@ -222,14 +222,19 @@ class FormRow:
     def _render_left_column(self, fk_tracker, allow_new):
         """Render the left column, handling the 'New' checkbox or displaying the field's name."""
         if allow_new and self.field.type == FieldType.FOREIGN_KEY:
-            self._handle_foreign_key_checkbox(fk_tracker)
+            is_new = self._handle_foreign_key_checkbox(fk_tracker)
+            if not is_new:
+                self._display_field_name()
         else:
             self._display_field_name()
 
     def _handle_foreign_key_checkbox(self, fk_tracker):
         """Handle the logic for the 'New' checkbox in foreign key fields."""
-        self.is_new = st.checkbox('New', key=f'{self.field.name}-checkbox')
+        left_side, right_side = st.columns([1,3])
+        with right_side:
+            self.is_new = st.checkbox('New', key=f'{self.field.name}-checkbox')
         self._update_foreign_key_tracking(fk_tracker)
+        return self.is_new
 
     def _update_foreign_key_tracking(self, fk_tracker):
         """Update the tracking of foreign key dependencies based on the 'New' checkbox."""
@@ -243,7 +248,9 @@ class FormRow:
 
     def _display_field_name(self):
         """Display the field's name in italic in the left column."""
-        st.write(f'&emsp;&emsp;*{self.field.form_name}*')
+        left_side, right_side = st.columns([1,3])
+        with right_side:
+            st.write(f'*{self.field.form_name}*')
 
     def _render_right_column(self):
         """Render the right column, displaying either the input field or a placeholder."""

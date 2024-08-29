@@ -8,7 +8,6 @@ from src.api import APIClient
 from src.app import CRUDApp
 
 logger = logging.getLogger(__name__)
-st.set_page_config(layout=layout_mode)
 
 # Assigned a value due to streamlit magic otherwise embedding string into webapp.
 todo = '''
@@ -122,9 +121,4 @@ if __name__ == "__main__":
     # Columns for displaying main app page
     left_side, right_side = st.columns(2) 
 
-    with left_side:
-        app.run(endpoint)
-
-    with right_side:
-        with st.expander("Display Data"):
-            table_display.show_table(endpoint)
+    app.run(endpoint)

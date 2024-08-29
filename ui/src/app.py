@@ -42,7 +42,7 @@ class CRUDApp:
         return new_fields_list
 
     def run(self, endpoint):
-        # Display selected table and forms
-        st.header(f"{endpoint.capitalize().replace('_', ' ')}")
-        left_side, right_side = st.columns(2)
-        init_form_tree(self.api_client, endpoint, self.form_endpoint_map).show_form()
+        with st.container(border=True):
+            # Display selected table and forms
+            st.header(f"{endpoint.capitalize().replace('_', ' ')}")
+            init_form_tree(self.api_client, endpoint, self.form_endpoint_map).show_form()
