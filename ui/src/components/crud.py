@@ -42,7 +42,6 @@ class DynamicCRUDForm:
         return new_fields_list
 
     def run(self, endpoint):
-        with st.container(border=True):
-            # Display selected table and forms
-            st.header(f"{endpoint.capitalize().replace('_', ' ')}")
-            init_form_tree(self.api_client, endpoint, self.form_endpoint_map).show_form()
+        # Display selected table and forms
+        st.header(f"{endpoint.capitalize().replace('_', ' ')}")
+        init_form_tree(self.api_client, endpoint, self.form_endpoint_map).show_form()

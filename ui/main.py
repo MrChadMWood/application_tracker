@@ -96,9 +96,6 @@ if __name__ == "__main__":
     # Initialize forms
     all_forms = create_forms()
 
-    # Maps human readable names to form endpoints
-    form_endpoints = {form.endpoint.title().replace('_', ' '): form.endpoint for form in all_forms}
-
     # Initialize api client, app, table
     api_client = APIClient(base_url=api_url)
     app = DynamicCRUDForm(api_client, all_forms)
@@ -106,6 +103,9 @@ if __name__ == "__main__":
 
     # Prepare forms for use
     app.initialize_forms()
+
+    # Maps human readable names to form endpoints
+    form_endpoints = {form.endpoint.title().replace('_', ' '): form.endpoint for form in all_forms}
 
     # Sidebar for selecting entity
     with st.sidebar:
@@ -118,7 +118,8 @@ if __name__ == "__main__":
     # Form endpoint currently selected
     endpoint = form_endpoints[selected_entity]
 
-    # Columns for displaying main app page
-    left_side, right_side = st.columns(2) 
+    with st.expander('Data'):
+        table_display.show_table(endpoint)
 
-    app.run(endpoint)
+    with st.expander('Form', expanded=True):
+        app.run(endpoint)
